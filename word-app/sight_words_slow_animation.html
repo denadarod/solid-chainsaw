@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sight Words Learning</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 20px;
+        }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: white; font-size: clamp(1.8em, 6vw, 3em); text-shadow: 2px 2px 4px rgba(0,0,0,0.3); }
+        .video-container {
+            background: white; border-radius: 20px; padding: 20px 40px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            max-width: 800px; width: 100%; text-align: center; margin: 0 10px;
+        }
+        .grade-selector { margin: 20px 0; }
+        .grade-selector button {
+            margin: 0 10px; padding: 10px 20px; font-size: 1em; background: #f0f2f5; color: #555;
+        }
+        .grade-selector button.active { background: linear-gradient(45deg, #28a745, #20c997); color: white; }
+        .word-display {
+            font-size: clamp(2.5em, 8vw, 5em); font-weight: bold; color: #333; margin: 20px 0; min-height: 80px;
+            display: flex; align-items: center; justify-content: center; border: 3px dashed #667eea;
+            border-radius: 15px; background: linear-gradient(45deg, #f0f8ff, #e6f3ff); padding: 15px;
+        }
+        .word-display span.highlight { color: #e74c3c; text-decoration: underline; text-decoration-thickness: 4px; }
+        .sound-display {
+            margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 15px;
+            border: 2px solid #667eea; display: none;
+        }
+        .sound-display.show { display: block; animation: slideDown 0.5s ease-out; }
+        .blend-container {
+            min-height: 100px; display: flex; align-items: center; justify-content: center;
+            font-size: clamp(2em, 6vw, 3.5em); font-weight: bold; overflow: hidden;
+        }
+        .blend-parts { display: flex; align-items: center; justify-content: center; width: 100%; }
+        .blend-part {
+            color: #333; padding: 10px; transition: transform 0.2s ease-out, color 0.2s ease-out;
+        }
+        .blend-part.pulse { color: #3498db; transform: scale(1.15); }
+        .final-word {
+            color: #28a745; font-size: clamp(2.5em, 7vw, 4em); font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3); transition: transform 0.2s ease-out, color 0.2s ease-out;
+        }
+        .final-word.pulse { color: #3498db; transform: scale(1.15); }
+        .sound-help { font-size: 1.1em; color: #666; margin-top: 15px; font-style: italic; }
+        .word-info { margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 10px; border-left: 5px solid #667eea; }
+        .progress-bar { width: 100%; height: 10px; background: #e0e0e0; border-radius: 5px; margin: 20px 0; overflow: hidden; }
+        .progress-fill { height: 100%; background: linear-gradient(90deg, #667eea, #764ba2); border-radius: 5px; transition: width 0.3s ease; }
+        .controls { display: flex; justify-content: center; gap: 15px; margin: 30px 0; flex-wrap: wrap; }
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2); color: white; border: none;
+            padding: 12px 20px; font-size: clamp(1em, 3vw, 1.2em); border-radius: 25px;
+            cursor: pointer; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(0,0,0,0.2); min-width: 140px;
+        }
+        button:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,0.3); }
+        button:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+        @keyframes slideDown { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+    <div class="header"><h1>🌟 Word Blending Helper! 🌟</h1></div>
+    <div class="video-container">
+        <div class="grade-selector">
+            <button id="grade1Btn" class="active" onclick="switchGrade(1)">1st Grade Words</button>
+            <button id="grade2Btn" onclick="switchGrade(2)">2nd Grade Words</button>
+        </div>
+        <div class="word-display" id="wordDisplay">Ready to start!</div>
+        <div class="sound-display" id="soundDisplay">
+            <div class="blend-container" id="blendContainer"></div>
+            <div class="sound-help" id="soundHelp"></div>
+            <button id="blendStepBtn" style="margin-top: 20px;" onclick="advanceBlendStep()">🔗 Blend Sounds</button>
+        </div>
+        <div class="word-info" id="wordInfo"><p><strong>Word 1 of 100</strong></p></div>
+        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+        <div class="controls">
+            <button onclick="startLearning()">▶️ Start</button>
+            <button id="showSoundsBtn" onclick="showSounds()" disabled>🔤 Show Blend Steps</button>
+            <button onclick="speakWord()">🔊 Say Word</button>
+            <button onclick="nextWord()">➡️ Next</button>
+        </div>
+    </div>
+
+    <script>
+        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }
+
+        const grade1Words = ['the', 'and', 'a', 'to', 'you', 'it', 'in', 'was', 'she', 'that', 'his', 'her', 'for', 'on', 'they', 'but', 'had', 'at', 'him', 'with', 'up', 'all', 'look', 'is', 'there', 'some', 'out', 'be', 'have', 'go', 'we', 'am', 'then', 'down', 'do', 'can', 'when', 'did', 'what', 'so', 'see', 'not', 'were', 'get', 'them', 'like', 'one', 'this', 'my', 'me', 'will', 'yes', 'big', 'went', 'are', 'come', 'if', 'now', 'no', 'came', 'ask', 'very', 'an', 'over', 'your', 'just', 'blue', 'red', 'from', 'good', 'any', 'about', 'around', 'how', 'know', 'right', 'put', 'too', 'old', 'take', 'cat', 'again', 'give', 'after', 'many', 'stop', 'let'];
+        const grade2Words = ['always', 'around', 'because', 'been', 'before', 'best', 'both', 'call', 'cold', 'fast', 'first', 'five', 'found', 'gave', 'goes', 'green', 'made', 'many', 'off', 'or', 'read', 'right', 'sing', 'sit', 'sleep', 'tell', 'their', 'these', 'those', 'us', 'use', 'very', 'which', 'why', 'work', 'write', 'your', 'brown', 'clean', 'drink', 'eight', 'fall', 'far', 'full', 'got', 'grow', 'hold', 'hot', 'keep', 'kind', 'laugh', 'light', 'much', 'never', 'only', 'own', 'seven', 'show', 'six', 'small', 'start', 'ten', 'today', 'together', 'try', 'turn', 'walk', 'warm', 'where', 'once', 'open', 'think'];
+
+        let currentGrade = 1, currentWordIndex = 0, currentWords = grade1Words, isPlaying = false;
+        let blendSteps = [], currentBlendStepIndex = 0;
+
+        const wordDisplay = document.getElementById('wordDisplay'), showSoundsBtn = document.getElementById('showSoundsBtn');
+        const soundDisplay = document.getElementById('soundDisplay'), blendContainer = document.getElementById('blendContainer');
+        const soundHelp = document.getElementById('soundHelp'), blendStepBtn = document.getElementById('blendStepBtn');
+
+        function switchGrade(grade) {
+            currentGrade = grade; currentWordIndex = 0;
+            currentWords = (grade === 1) ? grade1Words : grade2Words;
+            document.getElementById('grade1Btn').classList.toggle('active', grade === 1);
+            document.getElementById('grade2Btn').classList.toggle('active', grade === 2);
+            if(isPlaying) updateDisplay();
+            updateProgress(); hideSounds();
+        }
+
+        function startLearning() {
+            isPlaying = true; currentWordIndex = 0; showSoundsBtn.disabled = false;
+            updateDisplay(); updateProgress(); hideSounds();
+        }
+
+        function nextWord() {
+            if (!isPlaying) return;
+            currentWordIndex = (currentWordIndex < currentWords.length - 1) ? currentWordIndex + 1 : 0;
+            updateDisplay(); updateProgress(); hideSounds();
+        }
+
+        function updateDisplay() {
+            const word = currentWords[currentWordIndex];
+            wordDisplay.innerHTML = word.split('').map(letter => `<span>${letter}</span>`).join('');
+            document.getElementById('wordInfo').innerHTML = `<p><strong>Word ${currentWordIndex + 1} of ${currentWords.length}</strong></p>`;
+        }
+        
+        function highlightLetters(indices) {
+            wordDisplay.querySelectorAll('span').forEach(span => span.classList.remove('highlight'));
+            const spans = wordDisplay.querySelectorAll('span');
+            indices.forEach(index => { if (spans[index]) spans[index].classList.add('highlight'); });
+        }
+
+        function updateProgress() {
+            document.getElementById('progressFill').style.width = `${((currentWordIndex + 1) / currentWords.length) * 100}%`;
+        }
+
+        function generateBlendSteps(word) {
+            const vowels = 'aeiou', steps = [];
+            let vowelIndex = -1;
+            for (let i = 0; i < word.length; i++) { if (vowels.includes(word[i].toLowerCase())) { vowelIndex = i; break; } }
+            if (vowelIndex === -1) return [];
+
+            let currentBlend = word[vowelIndex], blendedIndices = [vowelIndex];
+            for (let i = vowelIndex + 1; i < word.length; i++) {
+                steps.push({ part1: currentBlend, part2: word[i], result: currentBlend + word[i], indices1: [...blendedIndices], indices2: [i] });
+                currentBlend += word[i]; blendedIndices.push(i);
+            }
+            for (let i = vowelIndex - 1; i >= 0; i--) {
+                steps.push({ part1: word[i], part2: currentBlend, result: word[i] + currentBlend, indices1: [i], indices2: [...blendedIndices] });
+                currentBlend = word[i] + currentBlend; blendedIndices.unshift(i);
+            }
+            return steps;
+        }
+
+        function showSounds() {
+            if (!isPlaying) return;
+            blendSteps = generateBlendSteps(currentWords[currentWordIndex]);
+            currentBlendStepIndex = 0;
+            if (blendSteps.length === 0) {
+                blendContainer.innerHTML = "Cannot blend this word.";
+                soundHelp.textContent = "This word doesn't follow the vowel rule.";
+                blendStepBtn.style.display = 'none';
+            } else {
+                soundHelp.textContent = `Click "Blend Sounds" to animate the first step.`;
+                blendStepBtn.style.display = 'inline-block';
+                blendStepBtn.disabled = false;
+                const step = blendSteps[currentBlendStepIndex];
+                blendContainer.innerHTML = `<div class="blend-parts"><span class="blend-part">${step.part1}</span><span class="blend-part" style="margin: 0 50px;"></span><span class="blend-part">${step.part2}</span></div>`;
+                highlightLetters([...step.indices1, ...step.indices2]);
+            }
+            soundDisplay.classList.add('show');
+        }
+
+        function hideSounds() {
+            soundDisplay.classList.remove('show');
+            wordDisplay.querySelectorAll('span').forEach(span => span.classList.remove('highlight'));
+        }
+
+        function advanceBlendStep() {
+            if (currentBlendStepIndex >= blendSteps.length) return;
+            blendStepBtn.disabled = true;
+            const step = blendSteps[currentBlendStepIndex];
+            runBlendingAnimation(step, () => {
+                currentBlendStepIndex++;
+                if (currentBlendStepIndex < blendSteps.length) {
+                    const nextStep = blendSteps[currentBlendStepIndex];
+                    blendContainer.innerHTML = `<div class="blend-parts"><span class="blend-part">${nextStep.part1}</span><span class="blend-part" style="margin: 0 50px;"></span><span class="blend-part">${nextStep.part2}</span></div>`;
+                    highlightLetters([...nextStep.indices1, ...nextStep.indices2]);
+                    soundHelp.textContent = "Great! Click again for the next blend.";
+                    blendStepBtn.disabled = false;
+                } else {
+                    soundHelp.textContent = `🎉 Awesome! The final word is "${step.result}"! 🎉`;
+                }
+            });
+        }
+
+        function runBlendingAnimation(step, onComplete) {
+            blendContainer.innerHTML = `<div class="blend-parts"><span class="blend-part" id="part1">${step.part1}</span><span class="blend-part" id="spacer"></span><span class="blend-part" id="part2">${step.part2}</span></div>`;
+            const part1 = document.getElementById('part1'), part2 = document.getElementById('part2'), spacer = document.getElementById('spacer');
+            
+            // --- TIMING HAS BEEN SLOWED DOWN HERE ---
+            const animationSteps = [
+                { gap: '80px', speed: 1600 }, { gap: '60px', speed: 1400 }, { gap: '40px', speed: 1200 },
+                { gap: '20px', speed: 1000 }, { gap: '5px', speed: 800 }, { gap: '0px', speed: 600 }
+            ];
+            let stepIndex = 0;
+
+            function nextAnimationStep() {
+                if (stepIndex >= animationSteps.length) {
+                    blendContainer.innerHTML = `<div class="final-word">${step.result}</div>`;
+                    const finalWordEl = blendContainer.querySelector('.final-word');
+                    setTimeout(() => { finalWordEl.classList.add('pulse'); }, 100);
+                    setTimeout(() => { finalWordEl.classList.remove('pulse'); }, 800); // Increased duration
+                    setTimeout(onComplete, 2000); // Increased final pause
+                    return;
+                }
+                const animStep = animationSteps[stepIndex];
+                spacer.style.transition = `margin ${animStep.speed}ms ease-in-out`;
+                spacer.style.margin = `0 ${animStep.gap}`;
+                
+                setTimeout(() => {
+                    part1.classList.add('pulse');
+                    setTimeout(() => {
+                        part1.classList.remove('pulse');
+                        part2.classList.add('pulse');
+                        setTimeout(() => part2.classList.remove('pulse'), animStep.speed / 2 - 50);
+                    }, animStep.speed / 2);
+                }, 100);
+                
+                setTimeout(() => { stepIndex++; nextAnimationStep(); }, animStep.speed);
+            }
+            nextAnimationStep();
+        }
+        
+        function speakWord() {
+            if (!isPlaying || !('speechSynthesis' in window)) return;
+            speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(currentWords[currentWordIndex]);
+            utterance.rate = 0.7; utterance.pitch = 1.1;
+            speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+</html>
